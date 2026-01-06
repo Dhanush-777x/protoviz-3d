@@ -1,0 +1,25 @@
+{
+  "title": "UART - Why does this happen?",
+  "items": [
+    {
+      "question": "Why does baud mismatch cause garbage data?",
+      "answer": "UART has no shared clock. The receiver samples each bit using its own timing. When baud rates differ, the sampling point slowly drifts, eventually causing bit errors."
+    },
+    {
+      "question": "Why does a small baud mismatch sometimes still work?",
+      "answer": "With small baud differences, timing drift is slow. Early bits are sampled correctly, but errors appear only after several bits or characters."
+    },
+    {
+      "question": "Why does corruption appear in the middle of characters?",
+      "answer": "Timing error accumulates over time. Early bits align correctly, but later bits drift into adjacent bit windows, causing corrupted data."
+    },
+    {
+      "question": "Why is the stop bit important?",
+      "answer": "The stop bit forces the line HIGH, giving the receiver time to re-synchronize before the next character begins."
+    },
+    {
+      "question": "What happens on the line when no data is sent?",
+      "answer": "When idle, the UART line stays HIGH. This idle state helps the receiver detect the next start bit reliably."
+    }
+  ]
+}

@@ -1,0 +1,73 @@
+/**
+ * \file globals.css
+ * \brief Global styles and utility layers for the Protocol Visualizer UI.
+ *
+ * Defines base resets, typography, glassmorphism utilities,
+ * and shared animation primitives used across the application.
+ */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* --------------------------------------------------
+   Global reset
+-------------------------------------------------- */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* --------------------------------------------------
+   Base styles
+-------------------------------------------------- */
+@layer base {
+  body {
+    @apply bg-[#0e1118] text-[#e8ebf2];
+    font-family:
+      -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Inter,
+      Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    letter-spacing: 0.2px;
+  }
+}
+
+/* --------------------------------------------------
+   Custom utilities
+-------------------------------------------------- */
+@layer utilities {
+  .glass-panel {
+    background: linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.18),
+      rgba(255, 255, 255, 0.06)
+    );
+    border-radius: 16px;
+
+    /* keep for Safari / DOM fallback */
+    backdrop-filter: blur(18px) saturate(160%);
+    -webkit-backdrop-filter: blur(18px) saturate(160%);
+  }
+
+  .glass-border {
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.35),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.08);
+  }
+}
+
+/* --------------------------------------------------
+   Animations
+-------------------------------------------------- */
+@keyframes pulse-error {
+  0%,
+  100% {
+    box-shadow: 0 0 18px rgba(255, 107, 107, 0.6);
+  }
+  50% {
+    box-shadow: 0 0 26px rgba(255, 107, 107, 0.9);
+  }
+}
