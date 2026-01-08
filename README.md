@@ -40,7 +40,6 @@ Protoviz 3D bridges that gap by visualizing:
 
 - **Next.js**
 - **React**
-- **Tailwind CSS**
 - **Three.js / React Three Fiber**
 - **Zustand**
 - **Tailwind CSS**
@@ -115,7 +114,7 @@ This project focuses on conceptual and educational accuracy, not electrical-leve
 - UART timing, framing, and baud-rate behavior are modeled realistically
 - Baud rate mismatch demonstrates sampling drift and data corruption
 - Bit-level visuals reflect actual UART framing rules
-- Electrical characteristics (voltage levels, noise, slew rates) are intentionally abstracted
+- Electrical characteristics (voltage levels, noise, slew rates) are intentionally abstracted.
   The goal is to help users understand what happens on the wire, not to replace hardware-level analyzers.
 
 ## 🗺 Roadmap

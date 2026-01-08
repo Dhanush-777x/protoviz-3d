@@ -280,7 +280,7 @@ export default function UARTTutorial({
                 e.currentTarget.style.transform = 'translateY(0)';
               }}
             >
-              Skip Tutorial
+              Skip
             </button>
 
             <button
