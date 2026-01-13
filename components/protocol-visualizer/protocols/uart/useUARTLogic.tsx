@@ -1,356 +1,388 @@
 /**
- * \file useUARTLogic.tsx
- * \brief Global UART state management and transmission logic.
- *
- * This file implements the core UART simulation logic using Zustand.
- * It manages transmission state, bit-level timing, waveform generation,
- * tutorial flow control, and error scenarios such as wire shorting.
+ * \file useUARTLogic.ts
+ * \brief Zustand store managing UART transmission state, timing, and tutorial flow.
  */
 
 import { create } from 'zustand';
 
-/* ------------------------------------------------------------------ */
-/* Types                                                              */
-/* ------------------------------------------------------------------ */
-
 export type TutorialStep =
-  | 'disabled'
-  | 'set-text'
-  | 'set-baud'
-  | 'click-transmit'
-  | 'start-bit'
-  | 'data-bits'
-  | 'stop-bit'
-  | 'idle-state'
-  | 'deep-dive';
+    | 'disabled'
+    | 'set-text'
+    | 'set-baud'
+    | 'click-transmit'
+    | 'start-bit'
+    | 'data-bits'
+    | 'stop-bit'
+    | 'idle-state'
+    | 'deep-dive';
 
 export type StatusType =
-  | 'idle'
-  | 'transmitting'
-  | 'success'
-  | 'error'
-  | 'paused'
-  | 'resumed';
+    | 'idle'
+    | 'transmitting'
+    | 'success'
+    | 'error'
+    | 'paused'
+    | 'resumed';
 
 interface UARTStatus {
-  text: string;
-  type: StatusType;
+    text: string;
+    type: StatusType;
 }
 
 interface UARTState {
-  baudRate: number;
-  data: string;
-  previewData?: string;
-  isTransmitting: boolean;
-  isPaused: boolean;
-  currentBit: number;
-  totalBits: number;
-  bitStream: number[];
-  waveformData: number[];
-  wireShorted: boolean;
-  status: UARTStatus;
-  bitTimer: number;
+    baudRate: number;
+    data: string;
+    previewData?: string;
+    isTransmitting: boolean;
+    isPaused: boolean;
+    currentBit: number;
+    totalBits: number;
+    bitStream: number[];
+    waveformData: number[];
+    wireShorted: boolean;
+    status: UARTStatus;
+    bitTimer: number;
+    resetKey: number;
 
-  tutorialEnabled: boolean;
-  tutorialStep: TutorialStep;
-  tutorialHold: boolean;
+    tutorialEnabled: boolean;
+    tutorialStep: TutorialStep;
+    tutorialHold: boolean;
 
-  setData: (data: string) => void;
-  setBaudRate: (baudRate: number) => void;
-  setTutorialStep: (step: TutorialStep) => void;
-  setTutorialEnabled: (v: boolean) => void;
-  setTutorialHold: (v: boolean) => void;
-  startOrToggleTransmission: () => void;
-  toggleWireShort: () => void;
-  togglePause: () => void;
-  pauseTransmission: () => void;
-  resumeTransmission: () => void;
-  advanceBit: () => void;
-  updateTransmission: (delta: number) => void;
-  resetTransmission: () => void;
+    setData: (data: string) => void;
+    setBaudRate: (baudRate: number) => void;
+    setTutorialStep: (step: TutorialStep) => void;
+    setTutorialEnabled: (v: boolean) => void;
+    setTutorialHold: (v: boolean) => void;
+    startOrToggleTransmission: () => void;
+    toggleWireShort: () => void;
+    togglePause: () => void;
+    pauseTransmission: () => void;
+    resumeTransmission: () => void;
+    advanceBit: () => void;
+    updateTransmission: (delta: number) => void;
+    resetTransmission: () => void;
 }
 
-/* ------------------------------------------------------------------ */
-/* Helpers                                                            */
-/* ------------------------------------------------------------------ */
-
+/**
+ * \brief Converts a string into a UART bit stream with start and stop bits.
+ */
 function stringToBitStream(str: string): number[] {
-  const bitStream: number[] = [];
+    const bitStream: number[] = [];
 
-  for (let charIndex = 0; charIndex < str.length; charIndex++) {
-    const byte = str.charCodeAt(charIndex);
+    for (let charIndex = 0; charIndex < str.length; charIndex++) {
+        const byte = str.charCodeAt(charIndex);
 
-    bitStream.push(0); // Start bit
-    for (let i = 0; i < 8; i++) {
-      bitStream.push((byte >> i) & 1); // Data bits
+        bitStream.push(0);
+
+        for (let i = 0; i < 8; i++) {
+            bitStream.push((byte >> i) & 1);
+        }
+        bitStream.push(1);
     }
-    bitStream.push(1); // Stop bit
-  }
 
-  return bitStream;
+    return bitStream;
 }
 
+/**
+ * \brief Truncates text for preview display during transmission.
+ */
 function truncateText(text: string, maxLength = 10) {
-  if (text.length <= maxLength) return text;
-  return text.slice(0, maxLength) + '…';
+    if (text.length <= maxLength) return text;
+    return text.slice(0, maxLength) + '…';
 }
 
-/* ------------------------------------------------------------------ */
-/* Store                                                              */
-/* ------------------------------------------------------------------ */
-
+/**
+ * \brief Global UART state store handling transmission logic and tutorial state.
+ */
 export const useUARTStore = create<UARTState>((set, get) => ({
-  baudRate: 9600,
-  data: '',
-  previewData: undefined,
-  isTransmitting: false,
-  isPaused: false,
-  currentBit: 0,
-  totalBits: 0,
-  bitStream: [],
-  waveformData: [],
-  wireShorted: false,
-  bitTimer: 0,
+    baudRate: 9600,
+    data: 'Protoviz-3D',
+    previewData: undefined,
+    isTransmitting: false,
+    isPaused: false,
+    currentBit: 0,
+    totalBits: 0,
+    bitStream: [],
+    waveformData: [],
+    wireShorted: false,
+    bitTimer: 0,
+    resetKey: 0,
 
-  status: { text: 'Ready to transmit', type: 'idle' },
+    status: { text: 'Ready to transmit', type: 'idle' },
 
-  tutorialEnabled: false,
-  tutorialStep: 'disabled',
-  tutorialHold: false,
+    tutorialEnabled: false,
+    tutorialStep: 'disabled',
+    tutorialHold: false,
 
-  /* ---------------- Settings ---------------- */
+    /**
+     * \brief Updates the UART baud rate and resets status to idle.
+     */
+    setBaudRate: (rate) => {
+        set({
+            baudRate: rate,
+            status: { text: `Baud rate set to ${rate} bps`, type: 'idle' },
+        });
+    },
 
-  setBaudRate: (rate) => {
-    set({
-      baudRate: rate,
-      status: { text: `Baud rate set to ${rate} bps`, type: 'idle' },
-    });
-  },
+    /**
+     * \brief Updates the transmit data buffer.
+     */
+    setData: (data) => {
+        set({ data: data ?? '' });
+    },
 
-  setData: (data) => {
-    set({ data: data ?? '' });
-  },
+    /**
+     * \brief Enables or disables the UART tutorial mode.
+     */
+    setTutorialEnabled: (v) => {
+        set({
+            tutorialEnabled: v,
+            tutorialStep: v ? 'set-text' : 'disabled',
+        });
+    },
 
-  setTutorialEnabled: (v) => {
-    set({
-      tutorialEnabled: v,
-      tutorialStep: v ? 'set-text' : 'disabled',
-    });
-  },
+    /**
+     * \brief Sets the current tutorial step.
+     */
+    setTutorialStep: (step) => {
+        set({ tutorialStep: step });
+    },
 
-  setTutorialStep: (step) => {
-    set({ tutorialStep: step });
-  },
+    /**
+     * \brief Temporarily pauses transmission progression during tutorial steps.
+     */
+    setTutorialHold: (v) =>
+        set((state) => ({
+            tutorialHold: v,
+            bitTimer: v ? 0 : state.bitTimer,
+        })),
 
-  setTutorialHold: (v) =>
-    set((state) => ({
-      tutorialHold: v,
-      bitTimer: v ? 0 : state.bitTimer,
-    })),
+    /**
+     * \brief Starts, pauses, or resumes UART transmission based on current state.
+     */
+    startOrToggleTransmission: () => {
+        const { isTransmitting, isPaused, wireShorted } = get();
+        const data = get().data.trim();
 
-  /* ---------------- Transmission ---------------- */
+        if (wireShorted) {
+            set({
+                status: {
+                    text: 'Cannot transmit: wires are shorted',
+                    type: 'error',
+                },
+            });
+            return;
+        }
 
-  startOrToggleTransmission: () => {
-    const { isTransmitting, isPaused, wireShorted } = get();
-    const data = get().data.trim();
+        if (data.length === 0) {
+            set({
+                status: {
+                    text: 'Enter text to transmit',
+                    type: 'error',
+                },
+            });
+            return;
+        }
 
-    if (wireShorted) {
-      set({
-        status: {
-          text: 'Cannot transmit: wires are shorted',
-          type: 'error',
-        },
-      });
-      return;
-    }
+        const previewData = truncateText(data);
 
-    if (data.length === 0) {
-      set({
-        status: {
-          text: 'Enter text to transmit',
-          type: 'error',
-        },
-      });
-      return;
-    }
+        if (!isTransmitting) {
+            const bitStream = stringToBitStream(data);
 
-    const previewData = truncateText(data);
+            set({
+                bitStream,
+                totalBits: bitStream.length,
+                currentBit: 0,
+                waveformData: [],
+                isTransmitting: true,
+                isPaused: false,
+                bitTimer: 0,
+                previewData,
+                status: {
+                    text: `Transmitting "${previewData}" (0/${bitStream.length})`,
+                    type: 'transmitting',
+                },
+            });
+            return;
+        }
 
-    if (!isTransmitting) {
-      const bitStream = stringToBitStream(data);
+        if (isTransmitting && !isPaused) {
+            set({
+                isPaused: true,
+                status: { text: 'Transmission paused', type: 'paused' },
+            });
+            return;
+        }
 
-      set({
-        bitStream,
-        totalBits: bitStream.length,
-        currentBit: 0,
-        waveformData: [],
-        isTransmitting: true,
-        isPaused: false,
-        bitTimer: 0,
-        previewData,
-        status: {
-          text: `Transmitting "${previewData}" (0/${bitStream.length})`,
-          type: 'transmitting',
-        },
-      });
-      return;
-    }
+        if (isTransmitting && isPaused) {
+            set({
+                isPaused: false,
+                status: { text: 'Transmission resumed', type: 'resumed' },
+            });
+        }
+    },
 
-    if (isTransmitting && !isPaused) {
-      set({
-        isPaused: true,
-        status: { text: 'Transmission paused', type: 'paused' },
-      });
-      return;
-    }
+    /**
+     * \brief Toggles wire short fault and resets transmission if active.
+     */
+    toggleWireShort: () => {
+        const { wireShorted, isTransmitting } = get();
+        const newShortedState = !wireShorted;
 
-    if (isTransmitting && isPaused) {
-      set({
-        isPaused: false,
-        status: { text: 'Transmission resumed', type: 'resumed' },
-      });
-    }
-  },
+        if (newShortedState && isTransmitting) {
+            set({
+                wireShorted: true,
+                isTransmitting: false,
+                isPaused: false,
+                currentBit: 0,
+                totalBits: 0,
+                bitStream: [],
+                waveformData: [],
+                bitTimer: 0,
+                previewData: undefined,
+                status: {
+                    text: 'ERROR: Wires shorted',
+                    type: 'error',
+                },
+            });
+        } else {
+            set({
+                wireShorted: newShortedState,
+                status: newShortedState
+                    ? { text: 'ERROR: Wires shorted', type: 'error' }
+                    : { text: 'Ready to transmit', type: 'idle' },
+            });
+        }
+    },
 
-  toggleWireShort: () => {
-    const { wireShorted, isTransmitting } = get();
-    const newShortedState = !wireShorted;
+    /**
+     * \brief Advances transmission by one UART bit and updates waveform data.
+     */
+    advanceBit: () => {
+        const {
+            isTransmitting,
+            isPaused,
+            tutorialHold,
+            tutorialEnabled,
+            tutorialStep,
+            currentBit,
+            totalBits,
+            bitStream,
+            waveformData,
+            previewData,
+        } = get();
 
-    if (newShortedState && isTransmitting) {
-      set({
-        wireShorted: true,
-        isTransmitting: false,
-        isPaused: false,
-        currentBit: 0,
-        totalBits: 0,
-        bitStream: [],
-        waveformData: [],
-        bitTimer: 0,
-        previewData: undefined,
-        status: {
-          text: 'ERROR: Wires shorted',
-          type: 'error',
-        },
-      });
-    } else {
-      set({
-        wireShorted: newShortedState,
-        status: newShortedState
-          ? { text: 'ERROR: Wires shorted', type: 'error' }
-          : { text: 'Ready to transmit', type: 'idle' },
-      });
-    }
-  },
+        if (!isTransmitting || isPaused || tutorialHold) return;
 
-  advanceBit: () => {
-    const {
-      isTransmitting,
-      isPaused,
-      tutorialHold,
-      tutorialEnabled,
-      tutorialStep,
-      currentBit,
-      totalBits,
-      bitStream,
-      waveformData,
-      previewData,
-    } = get();
+        if (currentBit < totalBits) {
+            const bit = bitStream[currentBit];
+            const nextBit = currentBit + 1;
 
-    if (!isTransmitting || isPaused || tutorialHold) return;
+            set({
+                currentBit: nextBit,
+                waveformData: [...waveformData, bit],
+                status: {
+                    text: `Transmitting "${previewData}" (${nextBit}/${totalBits})`,
+                    type: 'transmitting',
+                },
+            });
 
-    if (currentBit < totalBits) {
-      const bit = bitStream[currentBit];
-      const nextBit = currentBit + 1;
+            if (tutorialEnabled) {
+                if (tutorialStep === 'click-transmit' && nextBit === 1)
+                    set({ tutorialHold: true });
 
-      set({
-        currentBit: nextBit,
-        waveformData: [...waveformData, bit],
-        status: {
-          text: `Transmitting "${previewData}" (${nextBit}/${totalBits})`,
-          type: 'transmitting',
-        },
-      });
+                if (tutorialStep === 'data-bits' && nextBit === 9)
+                    set({ tutorialHold: true });
 
-      if (tutorialEnabled) {
-        if (tutorialStep === 'click-transmit' && nextBit === 1)
-          set({ tutorialHold: true });
+                if (tutorialStep === 'stop-bit' && nextBit === 10)
+                    set({ tutorialHold: true });
+            }
 
-        if (tutorialStep === 'data-bits' && nextBit === 9)
-          set({ tutorialHold: true });
+            return;
+        }
 
-        if (tutorialStep === 'stop-bit' && nextBit === 10)
-          set({ tutorialHold: true });
-      }
+        set({
+            isTransmitting: false,
+            isPaused: false,
+            previewData: undefined,
+            status: {
+                text: 'Transmission complete',
+                type: 'success',
+            },
+        });
+    },
 
-      return;
-    }
+    /**
+     * \brief Updates bit timing and advances bits based on elapsed frame time.
+     */
+    updateTransmission: (delta) => {
+        const { isTransmitting, isPaused, baudRate, bitTimer, tutorialHold } =
+            get();
 
-    set({
-      isTransmitting: false,
-      isPaused: false,
-      previewData: undefined,
-      status: {
-        text: 'Transmission complete',
-        type: 'success',
-      },
-    });
-  },
+        if (!isTransmitting || isPaused || tutorialHold) return;
 
-  updateTransmission: (delta) => {
-    const { isTransmitting, isPaused, baudRate, bitTimer, tutorialHold } =
-      get();
+        const VISUAL_SLOWDOWN = 1000;
+        const bitDuration = 1 / baudRate;
+        const visualBitDuration = bitDuration * VISUAL_SLOWDOWN;
 
-    if (!isTransmitting || isPaused || tutorialHold) return;
+        const newTimer = bitTimer + delta;
 
-    const VISUAL_SLOWDOWN = 1000;
-    const bitDuration = 1 / baudRate;
-    const visualBitDuration = bitDuration * VISUAL_SLOWDOWN;
+        if (newTimer >= visualBitDuration) {
+            get().advanceBit();
+            set({ bitTimer: newTimer - visualBitDuration });
+        } else {
+            set({ bitTimer: newTimer });
+        }
+    },
 
-    const newTimer = bitTimer + delta;
+    /**
+     * \brief Pauses the ongoing UART transmission.
+     */
+    pauseTransmission: () => {
+        set({
+            isPaused: true,
+            status: { text: 'Transmission paused', type: 'paused' },
+        });
+    },
 
-    if (newTimer >= visualBitDuration) {
-      get().advanceBit();
-      set({ bitTimer: newTimer - visualBitDuration });
-    } else {
-      set({ bitTimer: newTimer });
-    }
-  },
+    /**
+     * \brief Resumes a previously paused UART transmission.
+     */
+    resumeTransmission: () => {
+        set({
+            isPaused: false,
+            status: { text: 'Transmission resumed', type: 'resumed' },
+        });
+    },
 
-  pauseTransmission: () => {
-    set({
-      isPaused: true,
-      status: { text: 'Transmission paused', type: 'paused' },
-    });
-  },
+    /**
+     * \brief Toggles between paused and running transmission states.
+     */
+    togglePause: () => {
+        const { isPaused } = get();
+        set({
+            isPaused: !isPaused,
+            status: isPaused
+                ? { text: 'Transmission resumed', type: 'resumed' }
+                : { text: 'Transmission paused', type: 'paused' },
+        });
+    },
 
-  resumeTransmission: () => {
-    set({
-      isPaused: false,
-      status: { text: 'Transmission resumed', type: 'resumed' },
-    });
-  },
-
-  togglePause: () => {
-    const { isPaused } = get();
-    set({
-      isPaused: !isPaused,
-      status: isPaused
-        ? { text: 'Transmission resumed', type: 'resumed' }
-        : { text: 'Transmission paused', type: 'paused' },
-    });
-  },
-
-  resetTransmission: () => {
-    set({
-      isTransmitting: false,
-      isPaused: false,
-      currentBit: 0,
-      totalBits: 0,
-      bitStream: [],
-      waveformData: [],
-      bitTimer: 0,
-      previewData: undefined,
-      status: { text: 'Ready to transmit', type: 'idle' },
-    });
-  },
+    /**
+     * \brief Resets all UART transmission state and waveform data.
+     */
+    resetTransmission: () => {
+        set((state) => ({
+            isTransmitting: false,
+            isPaused: false,
+            currentBit: 0,
+            totalBits: 0,
+            bitStream: [],
+            waveformData: [],
+            bitTimer: 0,
+            previewData: undefined,
+            status: { text: 'Ready to transmit', type: 'idle' },
+            resetKey: state.resetKey + 1,
+        }));
+    },
 }));

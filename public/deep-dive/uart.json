@@ -1,0 +1,111 @@
+{
+  "protocolName": "UART",
+  "description": "Universal Asynchronous Receiver Transmitter - Understanding asynchronous serial communication",
+  "categories": [
+    {
+      "category": "Fundamentals",
+      "items": [
+        {
+          "title": "What is UART and why is it asynchronous?",
+          "content": "UART is a serial communication protocol that sends data one bit at a time without a shared clock signal. Each device uses its own internal clock to time the transmission and reception of bits. This makes it 'asynchronous' - the devices don't need to be synchronized with each other, only agree on the data rate (baud rate)."
+        },
+        {
+          "title": "How does UART frame data?",
+          "content": "Each UART frame consists of: a START bit (logic LOW), 5-9 data bits (usually 8), an optional parity bit for error checking, and 1-2 STOP bits (logic HIGH). The START bit signals the beginning of transmission, the data bits carry the actual information, and the STOP bit(s) mark the end and give time for resynchronization."
+        },
+        {
+          "title": "What happens on the line when idle?",
+          "content": "When no data is being transmitted, the UART line stays at logic HIGH (typically 3.3V or 5V). This idle state is crucial because it allows the receiver to detect the falling edge when a START bit (logic LOW) begins, signaling the start of a new data frame."
+        },
+        {
+          "title": "Why is UART still widely used?",
+          "content": "UART is simple to implement, requires only two wires (TX and RX), needs no clock line, and is built into almost every microcontroller. It's perfect for debugging, sensor communication, GPS modules, Bluetooth modules, and short-distance point-to-point connections. Its simplicity makes it reliable and easy to troubleshoot."
+        }
+      ]
+    },
+    {
+      "category": "Timing and Baud Rate",
+      "items": [
+        {
+          "title": "What is baud rate and why does it matter?",
+          "content": "Baud rate is the number of signal changes per second, measured in bits per second (bps). Both transmitter and receiver must use the same baud rate. Common rates are 9600, 19200, 38400, 57600, and 115200 bps. The baud rate determines how fast data can be transmitted and how precisely the receiver must sample each bit."
+        },
+        {
+          "title": "Why does baud mismatch cause garbage data?",
+          "content": "UART has no shared clock, so the receiver samples each bit using its own timing. When baud rates differ, the sampling point slowly drifts from the actual bit boundaries. Initially, sampling might be close enough to read correctly, but timing error accumulates with each bit. Eventually, the receiver samples in the wrong bit window, reading incorrect values and producing corrupted data."
+        },
+        {
+          "title": "Why does a small baud mismatch sometimes still work?",
+          "content": "With small baud differences (e.g., 1-2% error), timing drift is slow enough that early bits in a frame are sampled correctly. Errors only appear after several bits or even several characters, when the accumulated timing error becomes significant enough to shift sampling into adjacent bit windows. This is why short transmissions might work despite slight baud mismatch."
+        },
+        {
+          "title": "How much baud rate tolerance is acceptable?",
+          "content": "Typically, UART can tolerate up to 2-3% baud rate mismatch for reliable communication. Beyond this, bit errors become frequent. The tolerance depends on the frame length - longer frames accumulate more timing error. Some UART implementations auto-detect baud rates by measuring the timing of the first START bit and known data patterns."
+        }
+      ]
+    },
+    {
+      "category": "Errors and Corruption",
+      "items": [
+        {
+          "title": "Why does corruption appear in the middle of characters?",
+          "content": "Timing error accumulates linearly over time. The first few bits after the START bit are sampled near their centers and read correctly. As more bits are transmitted, the sampling point drifts further from the ideal center. Eventually, it crosses into the next bit's window, causing the receiver to read the wrong value. This is why corruption often appears in the later bits of a character."
+        },
+        {
+          "title": "What causes framing errors?",
+          "content": "A framing error occurs when the receiver doesn't detect a valid STOP bit (logic HIGH) where it expects one. This happens due to: significant baud mismatch causing the receiver to sample at the wrong time, noise on the line flipping bits, or the transmitter sending data with incorrect framing settings. Framing errors indicate the receiver and transmitter are out of sync."
+        },
+        {
+          "title": "How do parity errors work?",
+          "content": "Parity is a simple error detection method. Even parity means the total number of 1s in the data bits plus the parity bit should be even. Odd parity means the total should be odd. If a bit flips due to noise, the parity check fails. However, parity can't detect two bit errors (they cancel out) and can't correct errors - it only detects them."
+        },
+        {
+          "title": "Can UART recover from errors automatically?",
+          "content": "UART itself has no automatic error recovery. If a framing or parity error occurs, the hardware typically flags it, but higher-level software must handle retransmission. Many protocols built on top of UART (like Modbus RTU) implement checksums, acknowledgments, and retries to ensure reliable data transfer despite UART's simplicity."
+        }
+      ]
+    },
+    {
+      "category": "Hardware and Electrical",
+      "items": [
+        {
+          "title": "What are TX and RX?",
+          "content": "TX (Transmit) is the output pin that sends data from one device. RX (Receive) is the input pin that receives data. For communication, TX of one device connects to RX of the other, and vice versa. This creates a cross-connection. Both devices also need a common ground reference for the voltage levels to make sense."
+        },
+        {
+          "title": "What voltage levels does UART use?",
+          "content": "Most modern UART uses TTL levels: logic HIGH is typically 3.3V or 5V, and logic LOW is 0V (ground). Older RS-232 UART uses ±12V signaling for longer distances and better noise immunity. Always check voltage compatibility - connecting a 5V UART to a 3.3V device without level shifting can damage the receiver."
+        },
+        {
+          "title": "Why is the stop bit important?",
+          "content": "The STOP bit serves multiple purposes: it forces the line back to the idle HIGH state, provides a guaranteed time gap between consecutive frames for the receiver to process data, and helps the receiver resynchronize its timing. Without STOP bits, back-to-back frames could blend together, making it impossible to distinguish where one frame ends and another begins."
+        },
+        {
+          "title": "What limits UART's maximum distance and speed?",
+          "content": "UART range is limited by signal degradation - capacitance and resistance in the wire slow down signal edges, causing distortion. At high baud rates, short rise/fall times are critical. Practical limits are around 15 meters for standard TTL UART. RS-232 can go further (up to 50 meters) due to differential signaling and higher voltage levels. For longer distances, use RS-485 or fiber optics."
+        }
+      ]
+    },
+    {
+      "category": "Practical Tips",
+      "items": [
+        {
+          "title": "How do I debug UART communication?",
+          "content": "Use a logic analyzer or oscilloscope to visualize the actual signals. Check: Are voltage levels correct? Is baud rate exactly the same on both sides? Are start/stop bits configured identically? Is the wiring correct (TX to RX crossover)? Is there a common ground? Many issues come from mismatched settings or incorrect wiring, not hardware failure."
+        },
+        {
+          "title": "What's the difference between UART, USART, and RS-232?",
+          "content": "UART is the hardware peripheral that implements asynchronous serial communication. USART (Universal Synchronous/Asynchronous Receiver Transmitter) can do both asynchronous (UART mode) and synchronous communication with a clock. RS-232 is an electrical standard defining voltage levels (±12V) and connector pinouts for UART communication, commonly used for legacy PC serial ports."
+        },
+        {
+          "title": "When should I use flow control?",
+          "content": "Flow control prevents data loss when the receiver can't keep up with incoming data. Hardware flow control uses RTS (Request To Send) and CTS (Clear To Send) lines - the receiver signals when it's ready for more data. Software flow control uses special characters (XON/XOFF). Use flow control when transmitting large amounts of data or when the receiver has limited buffer space and processing power."
+        },
+        {
+          "title": "Can I use UART for multi-device communication?",
+          "content": "Standard UART is point-to-point (one transmitter, one receiver). For multi-device networks, use RS-485 (differential signaling, multiple devices on a bus with addressing) or protocols like Modbus RTU built on top of UART. Some microcontrollers support multi-processor mode where an extra address bit identifies which device a frame is for."
+        }
+      ]
+    }
+  ]
+}

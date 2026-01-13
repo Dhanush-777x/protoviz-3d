@@ -1,0 +1,132 @@
+{
+  "protocolName": "I²C",
+  "description": "Inter-Integrated Circuit - Understanding synchronous multi-device communication",
+  "categories": [
+    {
+      "category": "Fundamentals",
+      "items": [
+        {
+          "title": "What is I²C and why is it synchronous?",
+          "content": "I²C (I-squared-C) is a synchronous serial communication protocol that uses a shared clock signal (SCL) to coordinate data transfer. Unlike UART, both devices use the same clock, eliminating timing drift issues. The controller (formerly called master) generates the clock, and peripherals (formerly called slaves) synchronize their data reading and writing to this clock."
+        },
+        {
+          "title": "Why does I²C use only two wires for multiple devices?",
+          "content": "I²C uses a bus topology with two shared lines: SCL (Serial Clock) for timing and SDA (Serial Data) for bidirectional data transfer. All devices connect to the same two wires in parallel. Each device has a unique 7-bit or 10-bit address, allowing the controller to communicate with specific devices by addressing them. This makes I²C extremely efficient for connecting multiple sensors, EEPROMs, and peripherals with minimal wiring."
+        },
+        {
+          "title": "What are START and STOP conditions?",
+          "content": "START and STOP are special signal patterns that define transaction boundaries. A START condition occurs when SDA drops from HIGH to LOW while SCL is HIGH - this signals the beginning of communication. A STOP condition occurs when SDA rises from LOW to HIGH while SCL is HIGH - this releases the bus. These conditions are unique because they're the only time SDA changes while SCL is HIGH (normally SDA only changes when SCL is LOW)."
+        },
+        {
+          "title": "How does I²C handle bidirectional communication on one wire?",
+          "content": "I²C uses open-drain (or open-collector) outputs with pull-up resistors. Devices can only pull the line LOW (by turning on a transistor) or release it (letting the pull-up resistor bring it HIGH). This allows multiple devices to share the same wire safely - if any device pulls the line LOW, it stays LOW. When all devices release, the pull-up resistor brings it HIGH. This enables bidirectional communication and bus arbitration without conflicts."
+        }
+      ]
+    },
+    {
+      "category": "Addressing and Communication",
+      "items": [
+        {
+          "title": "How does I²C addressing work?",
+          "content": "Each I²C peripheral has a unique 7-bit address (0x00 to 0x7F, though some addresses are reserved). The controller starts a transaction by sending the peripheral's address followed by a read/write bit. Only the device with the matching address responds with an ACK (acknowledge) and participates in the data transfer. This addressing scheme allows up to 112 devices on a single bus (some addresses are reserved for special functions)."
+        },
+        {
+          "title": "What's the difference between 7-bit and 10-bit addressing?",
+          "content": "Standard I²C uses 7-bit addresses, providing 128 possible addresses. Extended I²C uses 10-bit addressing (1024 addresses) for applications needing more devices. In 10-bit mode, the controller sends a special prefix (11110XX) followed by the remaining address bits. Most common I²C devices use 7-bit addressing - 10-bit is rarely needed except in very complex systems with many identical device types."
+        },
+        {
+          "title": "What does the read/write bit do?",
+          "content": "After the 7-bit address, the controller sends a read/write bit (R/W̄): 0 means write (controller will send data to peripheral), 1 means read (controller will receive data from peripheral). This 8th bit completes the address byte. The peripheral checks if the address matches and the operation is valid, then sends an ACK (pulling SDA LOW on the 9th clock pulse) if ready to proceed."
+        },
+        {
+          "title": "Can multiple controllers share the same I²C bus?",
+          "content": "Yes, I²C supports multi-controller mode, though it's less common. When multiple controllers need to access the bus, they use arbitration to prevent collisions. If two controllers start transmitting simultaneously, they monitor SDA while sending. If a controller tries to send a HIGH but sees a LOW (another controller is pulling it down), it loses arbitration and stops transmitting. The winning controller continues uninterrupted."
+        }
+      ]
+    },
+    {
+      "category": "Timing and Speed",
+      "items": [
+        {
+          "title": "What are the different I²C speed modes?",
+          "content": "I²C defines several speed modes: Standard Mode (100 kHz), Fast Mode (400 kHz), Fast Mode Plus (1 MHz), High-Speed Mode (3.4 MHz), and Ultra Fast Mode (5 MHz). Most devices support Standard or Fast Mode. Higher speeds require shorter wires, lower bus capacitance, and faster devices. Always check what speeds your specific devices support - mixing devices with different speed capabilities requires using the slowest device's maximum speed."
+        },
+        {
+          "title": "Why is clock stretching important?",
+          "content": "Clock stretching allows peripherals to slow down communication when they need more time to process data. The peripheral holds SCL LOW after the controller releases it, forcing the controller to wait. The controller must check for SCL to return HIGH before continuing. This is crucial for peripherals with slow internal processing, like temperature sensors performing conversions or EEPROMs writing to flash memory."
+        },
+        {
+          "title": "What determines the maximum I²C bus length?",
+          "content": "Bus capacitance is the main limiting factor. Longer wires and more devices increase capacitance, which slows down signal rise times due to the pull-up resistors charging the capacitance. Standard I²C can handle about 400 pF total capacitance. In practice, this limits buses to a few meters at standard speeds. For longer distances, use I²C bus extenders, repeaters, or switch to different protocols like CAN or RS-485."
+        },
+        {
+          "title": "How do pull-up resistors affect I²C performance?",
+          "content": "Pull-up resistors determine how fast the bus can transition from LOW to HIGH (rise time). Lower resistance means faster rise times but higher current consumption. Higher resistance means slower rise times. The optimal value depends on bus capacitance and speed: typically 4.7kΩ for Standard Mode, 2.2kΩ for Fast Mode. Calculate using the formula: R_min = (V_dd - 0.4V) / 3mA, R_max = t_rise / (0.8473 × C_bus)."
+        }
+      ]
+    },
+    {
+      "category": "Acknowledgment and Errors",
+      "items": [
+        {
+          "title": "How does the ACK/NACK mechanism work?",
+          "content": "After every 8-bit byte, the receiver sends an acknowledge bit. ACK (acknowledge) is a LOW on the 9th clock pulse, meaning 'data received successfully, send more.' NACK (not acknowledge) is HIGH, meaning 'stop sending.' The controller uses NACK to signal the end of a read sequence. Peripherals use NACK if they can't accept data (buffer full, invalid command, etc.)."
+        },
+        {
+          "title": "What causes a NACK and how do I debug it?",
+          "content": "Common causes of NACK: wrong device address (check datasheet and A0/A1/A2 pin configurations), device not powered or not connected, device busy (performing internal operation), invalid register address or command, bus timing issues (pull-ups too weak, speed too high), or electrical problems (wiring, capacitance). Use a logic analyzer to verify addresses and timing, check pull-up resistors, and confirm device power and connections."
+        },
+        {
+          "title": "What happens when no device acknowledges an address?",
+          "content": "If no device responds to an address with ACK, the SDA line stays HIGH (pulled up by the resistor) during the 9th clock pulse. The controller detects this NACK and typically generates a STOP condition to release the bus. This indicates the addressed device doesn't exist, isn't powered, or has a different address than expected. The controller should not continue sending data - it must stop and potentially retry or report an error."
+        },
+        {
+          "title": "Can I recover from I²C bus lockup?",
+          "content": "Bus lockup occurs when a peripheral holds SDA LOW indefinitely (often due to interrupted transmission or device crash). To recover: check if SDA is stuck LOW while SCL is HIGH, manually toggle SCL (clock out up to 9 pulses) while monitoring SDA until it goes HIGH, then send a STOP condition. Some microcontrollers have automatic bus recovery features. If manual recovery fails, power cycle the entire bus."
+        }
+      ]
+    },
+    {
+      "category": "Hardware and Electrical",
+      "items": [
+        {
+          "title": "Why does I²C use open-drain outputs?",
+          "content": "Open-drain (or open-collector) allows multiple devices to drive the same wire safely using wired-AND logic. Any device can pull the line LOW by turning on its output transistor, but only the pull-up resistor can bring it HIGH (when all devices release). This prevents short circuits that would occur with push-pull outputs if two devices tried to drive opposite levels. It also enables multi-controller arbitration and bidirectional communication on a single line."
+        },
+        {
+          "title": "What are the voltage level considerations for I²C?",
+          "content": "I²C supports different voltage levels: 5V (traditional), 3.3V (modern), 1.8V (low-power), and even lower for specialized applications. When mixing voltage levels, use level shifters or translators to protect devices. Simple resistor dividers don't work well due to the open-drain nature. Dedicated I²C level shifters use MOSFETs to provide bidirectional level translation while preserving the open-drain characteristics."
+        },
+        {
+          "title": "What are the hardware requirements for I²C?",
+          "content": "Essential hardware: I²C-capable microcontroller or bit-banged GPIO, pull-up resistors on both SCL and SDA (one pair for the entire bus), proper power supply, and common ground. Optional but recommended: series resistors (10-100Ω) for ESD protection, low-pass filters for noise immunity in harsh environments, and bus extenders or buffers for long-distance or high-capacitance applications."
+        },
+        {
+          "title": "How do I calculate the correct pull-up resistor value?",
+          "content": "The pull-up value depends on bus capacitance and desired speed. Formula: R_max = t_rise / (0.8473 × C_bus), where t_rise is maximum allowed rise time (1000ns for Standard Mode, 300ns for Fast Mode) and C_bus is total bus capacitance. Also ensure R_min > (V_dd - 0.4V) / 3mA to limit current. Start with 4.7kΩ for Standard Mode or 2.2kΩ for Fast Mode, then adjust based on measured rise times using an oscilloscope."
+        }
+      ]
+    },
+    {
+      "category": "Practical Tips",
+      "items": [
+        {
+          "title": "How do I scan for I²C devices?",
+          "content": "Implement an I²C scanner: loop through all possible 7-bit addresses (0x08 to 0x77, skipping reserved addresses 0x00-0x07 and 0x78-0x7F), send a START condition followed by each address with write bit, check for ACK, send STOP condition. Devices that ACK are present on the bus. Most Arduino and embedded platforms have I²C scanner example code. This is invaluable for debugging address conflicts or verifying device connections."
+        },
+        {
+          "title": "What's the best way to debug I²C communication?",
+          "content": "Use a logic analyzer to capture and decode I²C transactions - it shows addresses, data bytes, ACK/NACK, and timing. Check: Are pull-up resistors present and correct value? Is there a common ground? Are rise times fast enough (measure with oscilloscope)? Does the peripheral address match the datasheet (account for A0/A1/A2 pins)? Are you sending commands in the correct sequence? Many issues are address mismatches or incorrect command sequences."
+        },
+        {
+          "title": "Can I use I²C for long-distance communication?",
+          "content": "Standard I²C is limited to a few meters due to capacitance. For longer distances: use I²C bus extenders (active devices that buffer and regenerate signals), P82B715 or similar chips that provide bidirectional buffering, or differential I²C variants. Alternatively, bridge to a different protocol: use I²C locally and CAN/RS-485 for long distances, or switch entirely to protocols designed for long range like Modbus RTU or industrial Ethernet."
+        },
+        {
+          "title": "How do I handle I²C address conflicts?",
+          "content": "Many I²C devices have configurable addresses via address pins (A0, A1, A2). Check the datasheet - address pins can often be tied HIGH or LOW to select from 2-8 different addresses. If devices have the same base address and no configuration options, use an I²C multiplexer (like TCA9548A) to isolate devices on separate bus segments. The controller can switch which segment is active, allowing multiple identical devices without address conflicts."
+        }
+      ]
+    }
+  ]
+}

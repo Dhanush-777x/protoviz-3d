@@ -1,9 +1,9 @@
 /**
  * \file InfoPoints.tsx
- * \brief Renders interactive 3D information points with hover and touch support.
+ * \brief Renders interactive 3D information markers for I²C scene components.
  */
 
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { Html } from '@react-three/drei';
@@ -17,11 +17,11 @@ interface InfoPoint {
 
 interface InfoPointsProps {
     points: InfoPoint[];
-    wireShorted?: boolean;
+    busPullupEnabled?: Boolean;
 }
 
 /**
- * \brief Renders a single interactive info point with animated glow and tooltip.
+ * \brief Displays a single interactive info marker with hover or tap details.
  */
 function SingleInfoPoint({
     position,
@@ -33,10 +33,9 @@ function SingleInfoPoint({
     const meshRef = useRef<THREE.Mesh>(null);
     const glowRef = useRef<THREE.Mesh>(null);
 
-    const isMobile = useMemo(() => {
-        if (typeof window === 'undefined') return false;
-        return window.matchMedia('(pointer: coarse)').matches;
-    }, []);
+    const isMobile =
+        typeof window !== 'undefined' &&
+        window.matchMedia('(pointer: coarse)').matches;
 
     useEffect(() => {
         if (!hovered || !isMobile) return;
@@ -45,7 +44,7 @@ function SingleInfoPoint({
         window.addEventListener('touchstart', close);
 
         return () => window.removeEventListener('touchstart', close);
-    }, [hovered, isMobile]);
+    }, [hovered]);
 
     useFrame((state) => {
         if (meshRef.current && glowRef.current) {
@@ -97,7 +96,7 @@ function SingleInfoPoint({
 
             {hovered && (
                 <Html
-                    position={[0, 1, 0]}
+                    position={[0, 1.5, 0]}
                     center
                     distanceFactor={8}
                     zIndexRange={[1000, 0]}
@@ -119,6 +118,7 @@ function SingleInfoPoint({
                         >
                             {title}
                         </div>
+
                         <div className="info-tooltip-desc">{description}</div>
                         <div
                             className="info-tooltip-arrow"
@@ -132,16 +132,15 @@ function SingleInfoPoint({
 }
 
 /**
- * \brief Renders a collection of info points and hides them when the wire is shorted.
+ * \brief Conditionally renders multiple info markers when the I²C bus is active.
  */
 export default function InfoPoints({
     points,
-    wireShorted = false,
+    busPullupEnabled = false,
 }: InfoPointsProps) {
-    if (wireShorted) {
+    if (!busPullupEnabled) {
         return null;
     }
-
     return (
         <group>
             {points.map((point, index) => (

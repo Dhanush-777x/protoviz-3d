@@ -1,21 +1,6 @@
-export type ProtocolType = 'uart' | 'i2c' | 'spi';
+/**
+ * \file protocols.ts
+ * \brief Defines supported communication protocol identifiers used across the application.
+ */
 
-export interface UARTConfig {
-  baudRate: number;
-  dataBits: 8; // Fixed for now
-  stopBits: 1; // Fixed for now
-  parity: 'none'; // Fixed for now
-}
-
-export interface TransmissionState {
-  isTransmitting: boolean;
-  currentBit: number;
-  totalBits: number;
-  data: string;
-  bitStream: number[];
-  waveformData: number[];
-}
-
-export interface WireState {
-  isShorted: boolean;
-}
+export type ProtocolType = 'uart' | 'i2c';
