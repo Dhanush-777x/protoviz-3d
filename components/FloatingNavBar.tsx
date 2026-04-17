@@ -12,7 +12,7 @@ import { useI2CStore } from './protocol-visualizer/protocols/i2c/useI2CLogic';
 import DeepDive from '@/components/protocol-visualizer/DeepDive';
 import { ProtocolType } from '@/types/protocols';
 
-const GITHUB_URL = 'https://github.com/Dhanush-777x/protoviz-3d.git';
+const GITHUB_URL = 'https://github.com/dhanush777x/protoviz-3d.git';
 
 interface FloatingNavBarProps {
     protocol: ProtocolType;

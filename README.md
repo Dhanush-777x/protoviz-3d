@@ -172,7 +172,7 @@ Your feedback is incredibly valuable for improving Protoviz 3D.
   <a href="https://buymeacoffee.com/dhanushmanz">
     <img src="https://img.shields.io/badge/Buy%20Me%20a%20Coffee-support-orange" />
   </a>
-  <a href="https://github.com/sponsors/Dhanush-777x">
+  <a href="https://github.com/sponsors/dhanush777x">
     <img src="https://img.shields.io/badge/GitHub%20Sponsors-support-ea4aaa?logo=github" />
   </a>
 </p>
